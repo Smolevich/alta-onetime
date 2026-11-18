@@ -132,13 +132,27 @@ def test_start_is_rate_limited(client):
 def test_without_env_bot_button_is_hidden(clock, events_path):
     c = make_client(clock, events_path, login_bot=None)
     assert (c.get("/check/api/login-config").json(), c.post("/check/api/bot-login").status_code) == (
-        {"bot": None},
+        {"bot": None, "widget": None},
         404,
     )
 
 
 def test_with_env_config_names_bot(client):
-    assert client.get("/check/api/login-config").json() == {"bot": "alta_login_bot"}
+    assert client.get("/check/api/login-config").json()["bot"] == "alta_login_bot"
+
+
+def test_config_names_widget_bot_from_env(clock, events_path, monkeypatch):
+    monkeypatch.setenv("TG_BOT_USERNAME", "@alta_widget_bot")
+    c = make_client(clock, events_path, login_bot=None)
+    assert c.get("/check/api/login-config").json()["widget"] == "alta_widget_bot"
+
+
+def test_widget_hidden_without_token(clock, events_path, monkeypatch):
+    monkeypatch.setenv("TG_BOT_USERNAME", "alta_widget_bot")
+    monkeypatch.delenv("TG_BOT_TOKEN", raising=False)
+    app = create_app(Store(clock=clock), events_path=events_path, bot_token="", login_bot=None)
+    c = TestClient(app, base_url="https://testserver")
+    assert c.get("/check/api/login-config").json()["widget"] is None
 
 
 def test_log_has_no_nonce_or_nick(client, events_path):
