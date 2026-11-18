@@ -22,6 +22,8 @@ CapabilityBoundingSet=
 RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
 SystemCallFilter=@system-service
 MemorySwapMax=0
+# Дамп памяти процесса унёс бы шифротексты и сессии на диск.
+LimitCORE=0
 # Журнал событий без персональных данных: /var/log/alta-onetime/events.jsonl, права 640.
 LogsDirectory=alta-onetime
 LogsDirectoryMode=0750

@@ -1,7 +1,7 @@
-import { b64url, EML, encryptBundleWithKey, generateLinkKey, isValidNick, normalizeNick, sniffType } from "./crypto.js?v=20261118a";
-import { bindIndicator, nextPaint } from "./progress.js?v=20261118a";
+import { b64url, EML, encryptBundleWithKey, generateLinkKey, isValidNick, normalizeNick, sniffType } from "./crypto.js?v=20261118b";
+import { bindIndicator, nextPaint } from "./progress.js?v=20261118b";
 import { checkStatement, describe } from "./dkim.js";
-import { bindLogout, currentUser, loginConfig, loginProblem, mountBotLogin, mountWidget } from "./tglogin.js?v=20261118a";
+import { bindLogout, currentUser, loginConfig, loginProblem, mountBotLogin, mountWidget } from "./tglogin.js?v=20261118b";
 
 const MAX_FILES = 5;
 const MAX_TOTAL = 60 * 1024 * 1024;
