@@ -108,7 +108,7 @@ export async function verifierFor(password, nick, salt, iterations = KDF_ITERATI
 
 // Контейнер: 4 байта длины заголовка, JSON {s: секунды показа, f: [[тип, размер], …]}, затем файлы подряд.
 // Ник отправителя сюда не кладём: его ставит сервер из сессии, клиентскому полю в водяном знаке веры нет.
-// Всё это шифруется целиком: сервер не знает ни числа файлов, ни их типов.
+// Всё это шифруется целиком: типов и размеров файлов сервер не знает. Число файлов он видит в X-Files и пишет в журнал.
 export function pack(files, seconds) {
   const meta = { s: seconds, f: files.map((f) => [f.type, f.bytes.byteLength]) };
   const header = enc.encode(JSON.stringify(meta));
