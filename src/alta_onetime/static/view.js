@@ -3,15 +3,15 @@ import {
   decryptBundle,
   decryptBundleWithKey,
   fromB64url,
-  linkKeyFrom,
   linkVerifierFor,
   normalizePassword,
   verifierFor,
-} from "./crypto.js?v=20261118a";
+} from "./crypto.js?v=20261118b";
 import { checkStatement, maskAccount, verdictText } from "./dkim.js";
 import { stamp, watermarkText } from "./mark.js";
-import { bindLogout, currentUser, loginConfig, loginProblem, mountBotLogin, mountWidget } from "./tglogin.js?v=20261118a";
-import { bindIndicator, nextPaint } from "./progress.js?v=20261118a";
+import { bindLogout, currentUser, loginConfig, loginProblem, mountBotLogin, mountWidget } from "./tglogin.js?v=20261118b";
+import { bindIndicator, nextPaint } from "./progress.js?v=20261118b";
+import { adoptLinkKey, dropLinkKey, keySlot } from "./linkkey.js?v=20261118b";
 import * as pdfjs from "./vendor/pdf.min.mjs";
 
 pdfjs.GlobalWorkerOptions.workerSrc = "/check/static/vendor/pdf.worker.min.mjs";
@@ -21,29 +21,19 @@ const itemId = location.pathname.split("/").filter(Boolean).pop();
 let salt = null;
 let me = "";
 let progress = null;
-// Виджет уводит вкладку на /check/api/tg-login и обратно без фрагмента; ключ на это время держим в sessionStorage.
-const KEY_SLOT = `alta-check-key:${itemId}`;
-let linkKey = takeLinkKey();
-
-function storage(fn) {
+const keySlotName = keySlot(itemId);
+// Доступ к sessionStorage сам бросает исключение, если хранилище запрещено: тогда ключ живёт только в памяти.
+const tabStorage = (() => {
   try {
-    return fn(sessionStorage);
+    return window.sessionStorage;
   } catch {
     return null;
   }
-}
-
-function takeLinkKey() {
-  const fromHash = linkKeyFrom(location.hash);
-  if (fromHash) return fromHash;
-  const saved = storage((s) => s.getItem(KEY_SLOT));
-  storage((s) => s.removeItem(KEY_SLOT));
-  return linkKeyFrom(saved);
-}
+})();
+let linkKey = adoptLinkKey(keySlotName, { location, history, storage: tabStorage });
 
 function forgetLinkKey() {
-  storage((s) => s.removeItem(KEY_SLOT));
-  history.replaceState(null, "", location.pathname);
+  dropLinkKey(keySlotName, tabStorage);
   if (linkKey) linkKey.fill(0);
   linkKey = null;
 }
@@ -59,14 +49,16 @@ function gone(why) {
 
 async function init() {
   const res = await fetch(`/check/api/meta/${encodeURIComponent(itemId)}`, { cache: "no-store" });
-  if (!res.ok) return gone();
+  if (!res.ok) {
+    forgetLinkKey();
+    return gone();
+  }
   salt = fromB64url((await res.json()).salt);
   const problem = loginProblem();
   me = (await currentUser().catch(() => null)) || "";
   if (!me) {
     $("login-msg").textContent = problem;
     only("login");
-    if (linkKey) storage((s) => s.setItem(KEY_SLOT, b64url(linkKey)));
     const config = botMounted && widgetMounted ? {} : await loginConfig().catch(() => ({}));
     if (!botMounted && config.bot) {
       botMounted = true;
@@ -78,7 +70,6 @@ async function init() {
     }
     return;
   }
-  storage((s) => s.removeItem(KEY_SLOT));
   bindLogout($("logout"));
   $("whoami").textContent = `Вы вошли как @${me}.`;
   only("ask");
@@ -263,7 +254,10 @@ async function openDoc() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ v: b64url(verifier) }),
     });
-    if (res.status === 404) return gone();
+    if (res.status === 404) {
+      forgetLinkKey();
+      return gone();
+    }
     if (res.status === 401) return location.reload();
     if (res.status === 429) return fail("Слишком много запросов. Подождите минуту и попробуйте ещё раз.");
     if (res.status === 403 && (await res.clone().json()).error === "other") {
