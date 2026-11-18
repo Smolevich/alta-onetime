@@ -146,8 +146,10 @@ def create_app(
     bot_token: str | None = None,
     allowed_recipients: frozenset[str] | None = None,
     login_bot: tuple[str, str, str] | None = None,
+    widget_bot: str | None = None,
 ) -> Starlette:
-    """login_bot — (токен, username, секрет вебхука) бота для входа по deep link; без него только виджет."""
+    """widget_bot — username бота Login Widget, чей токен bot_token; login_bot — (токен, username, секрет
+    вебхука) бота для входа по deep link; без него только виджет."""
     store = store or Store()
     if allowed_recipients is None:
         allowed_recipients = parse_recipients(os.environ.get("ALLOWED_RECIPIENTS"))
@@ -166,6 +168,8 @@ def create_app(
         bot_token_, bot_name, bot_secret = (os.environ.get(k, "") for k in names)
         login_bot = (bot_token_, bot_name, bot_secret) if bot_token_ and bot_name and bot_secret else None
     key = session_key(token) if token else b""
+    # Виджет без своего токена всё равно не прошёл бы проверку подписи — тогда не показываем его вовсе.
+    widget_username = (widget_bot or os.environ.get("TG_BOT_USERNAME", "")).lstrip("@") if key else ""
     # Сессию подписывает тот же ключ, что и у виджета: кука одна, откуда бы ни пришёл вход.
     bot_username = login_bot[1].lstrip("@") if login_bot and key else ""
     webhook_secret = login_bot[2] if bot_username and login_bot else ""
@@ -205,7 +209,7 @@ def create_app(
         return response
 
     async def login_config(request: Request) -> Response:
-        return JSONResponse({"bot": bot_username or None})
+        return JSONResponse({"bot": bot_username or None, "widget": widget_username or None})
 
     async def bot_login_start(request: Request) -> Response:
         if not bot_username:

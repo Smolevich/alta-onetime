@@ -1,7 +1,7 @@
-import { b64url, EML, encryptBundleWithKey, generateLinkKey, isValidNick, normalizeNick, sniffType } from "./crypto.js?v=20261116c";
-import { bindIndicator, nextPaint } from "./progress.js?v=20261116c";
+import { b64url, EML, encryptBundleWithKey, generateLinkKey, isValidNick, normalizeNick, sniffType } from "./crypto.js?v=20261118a";
+import { bindIndicator, nextPaint } from "./progress.js?v=20261118a";
 import { checkStatement, describe } from "./dkim.js";
-import { bindLogout, currentUser, loginBot, loginProblem, mountBotLogin, mountWidget } from "./tglogin.js?v=20261116c";
+import { bindLogout, currentUser, loginConfig, loginProblem, mountBotLogin, mountWidget } from "./tglogin.js?v=20261118a";
 
 const MAX_FILES = 5;
 const MAX_TOTAL = 60 * 1024 * 1024;
@@ -159,6 +159,7 @@ $("again").addEventListener("click", () => location.reload());
   }
   $("login-msg").textContent = problem;
   $("login").hidden = false;
-  if (await loginBot().catch(() => null)) mountBotLogin($("bot-login"), $("bot-link"), $("login-msg"), () => location.reload());
-  mountWidget($("widget"));
+  const config = await loginConfig().catch(() => ({}));
+  if (config.bot) mountBotLogin($("bot-login"), $("bot-link"), $("login-msg"), () => location.reload());
+  mountWidget($("widget"), config.widget);
 })();
