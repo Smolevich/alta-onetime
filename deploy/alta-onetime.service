@@ -1,0 +1,36 @@
+[Unit]
+Description=ALTA one-time document check (alta.smolevich.com/check/), https://github.com/Smolevich/alta-onetime
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/alta-onetime
+# Шифротексты живут только в памяти процесса: рестарт их теряет, и это допустимо.
+# --no-access-log: в строках доступа был бы IP посетителя.
+ExecStart=/opt/alta-onetime/.venv/bin/python -m uvicorn --factory alta_onetime.main:create_app --host 127.0.0.1 --port 8103 --no-server-header --no-access-log --proxy-headers --forwarded-allow-ips 127.0.0.1
+Restart=on-failure
+RestartSec=5
+# Отдельный временный пользователь вместо root. .env (root 600) читает systemd до смены пользователя.
+DynamicUser=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+CapabilityBoundingSet=
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+SystemCallFilter=@system-service
+MemorySwapMax=0
+# Журнал событий без персональных данных: /var/log/alta-onetime/events.jsonl, права 640.
+LogsDirectory=alta-onetime
+LogsDirectoryMode=0750
+UMask=0027
+Environment=EVENTS_LOG=/var/log/alta-onetime/events.jsonl
+# TG_BOT_TOKEN и необязательные LOGIN_BOT_TOKEN, LOGIN_BOT_USERNAME, LOGIN_WEBHOOK_SECRET (root 600)
+# кладёт deploy.sh из Keychain.
+EnvironmentFile=/opt/alta-onetime/.env
+MemoryMax=900M
+
+[Install]
+WantedBy=multi-user.target

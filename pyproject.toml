@@ -1,0 +1,36 @@
+[project]
+name = "alta-onetime"
+version = "0.1.0"
+description = "Временный одноразовый просмотр документов для проверки участников группы вкладчиков ALTA"
+requires-python = ">=3.13"
+dependencies = [
+    "starlette>=0.47",
+    "uvicorn>=0.35",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4",
+    "httpx>=0.28",
+    "ruff>=0.12",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/alta_onetime"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"src/alta_onetime/static" = "alta_onetime/static"
+
+[tool.ruff]
+line-length = 110
+target-version = "py313"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

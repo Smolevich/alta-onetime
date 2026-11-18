@@ -1,0 +1,10 @@
+/var/log/alta-onetime/events.jsonl {
+    daily
+    rotate 7
+    maxage 7
+    missingok
+    notifempty
+    compress
+    delaycompress
+    nocreate
+}

@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="referrer" content="no-referrer">
+<title>Просмотр документа</title>
+<link rel="stylesheet" href="/check/static/style.css?v=20261116c">
+<script type="module" src="/check/static/view.js?v=20261116c"></script>
+</head>
+<body>
+<main>
+<h1>Документ для проверки</h1>
+<p id="loading" class="muted">Проверяем ссылку…</p>
+
+<section id="login" hidden>
+<div class="box">Эта ссылка для конкретного человека. Войдите через Telegram — откроется, только если ваш ник совпадает с тем, кому отправили.</div>
+<div class="row"><button type="button" id="bot-login" hidden>Войти через Telegram</button></div>
+<p class="muted" hidden>В Telegram откроется бот — нажмите в нём «Start» и вернитесь сюда, страница продолжит сама. Не открылся? <a id="bot-link" href="#" target="_blank" rel="noopener noreferrer">Открыть бота</a>.</p>
+<div class="row" id="widget"></div>
+<p id="login-msg" class="error" role="status"></p>
+<p class="muted">Вошли не под тем аккаунтом? <a href="https://oauth.telegram.org" target="_blank" rel="noopener noreferrer">Сменить аккаунт Telegram</a>.</p>
+</section>
+
+<section id="ask" hidden>
+<div class="box">
+Документы можно открыть <b>только один раз</b>: после нажатия «Открыть» они будут видны 90 секунд, а на сервере удалятся сразу. Каждая страница подписана вашим ником; файлом не скачать. Расшифровка идёт в вашем браузере.
+</div>
+<p class="muted"><span id="whoami"></span> <button type="button" class="secondary" id="logout">Выйти</button></p>
+<div id="pw-block"><label for="pw"><b>Пароль</b></label>
+<div class="row"><input type="text" id="pw" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="Пароль от отправителя"></div></div>
+<div class="row"><button id="open">Открыть</button></div>
+<p id="msg" class="error" role="alert"></p>
+<div id="progress" class="progress" role="status" aria-live="polite" hidden><p class="progress-text"></p><div class="progress-track"><div class="progress-bar indeterminate"></div></div></div>
+</section>
+
+<section id="show" hidden>
+<div class="timer" id="timer" role="timer"></div>
+<div class="doc" id="doc"></div>
+</section>
+
+<section id="gone" hidden>
+<div class="box warn"><b>Документ удалён.</b> <span id="gone-why">Его уже открыли, истекли 24 часа или пять раз ввели неверный пароль. Если нужно посмотреть ещё раз, попросите отправителя загрузить файл заново.</span></div>
+</section>
+<p class="muted">Код сервиса открыт: <a href="https://github.com/Smolevich/alta-onetime" target="_blank" rel="noopener noreferrer">github.com/Smolevich/alta-onetime</a></p>
+</main>
+</body>
+</html>

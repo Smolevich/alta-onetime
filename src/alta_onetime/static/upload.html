@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="referrer" content="no-referrer">
+<title>Проверка документа</title>
+<link rel="stylesheet" href="/check/static/style.css?v=20261116c">
+<script type="module" src="/check/static/upload.js?v=20261116c"></script>
+</head>
+<body>
+<main>
+<h1>Показать документ один раз</h1>
+<p>Здесь можно показать проверяющему выписку или справку, что у вас в ALTA больше 50 000 €. Документы откроются <b>один раз на 90 секунд</b> и сразу удалятся. Каждая страница будет подписана ником получателя; файлом не скачать.</p>
+
+<div class="box warn">
+<b>Перед загрузкой закрасьте:</b>
+<ul>
+<li>номера счетов и карт;</li>
+<li>JMBG и номер паспорта;</li>
+<li>адрес и телефон.</li>
+</ul>
+<b>Оставьте</b> имя и сумму остатка — их и проверяют.
+</div>
+
+<div class="box">
+<b>Что происходит с файлом</b>
+<ol>
+<li>Файлы шифруются прямо в вашем браузере случайным ключом и ником проверяющего. Ключ — в самой ссылке после знака #, на сервер он не уходит. На сервер уходит только зашифрованная копия — сервер не видит, что внутри. Сервер записывает только служебное: когда создана и открыта ссылка, сколько файлов и их общий размер — без ников и без содержимого.</li>
+<li>Вы получаете одну ссылку и отправляете её проверяющему. Пароль не нужен: он войдёт через Telegram, и документ откроется, только если его ник совпадает.</li>
+<li>Когда проверяющий откроет ссылку, зашифрованная копия удаляется с сервера. Документы видны 90 секунд (или 60, если выберете), каждая страница подписана ником получателя, файлом не скачать. Потом они исчезают и с экрана.</li>
+<li>Если ссылку никто не открыл, она удаляется через 24 часа. Чужой ник документ не откроет и ссылку не испортит.</li>
+</ol>
+</div>
+
+<details class="box">
+<summary><b>Письмо банка .eml — тогда ничего закрашивать не нужно</b></summary>
+<p>Подойдёт письмо <b>«Izveštaj o stanju na računu»</b> от <b>altabanka@24x7.rs</b>. В почте откройте письмо → «Скачать сообщение» / «Показать оригинал» → сохраните файл .eml и загрузите его сюда.</p>
+<p>Проверяющий не увидит само письмо. Его браузер проверит подпись банка и покажет только: имя владельца счёта, дату, остаток «Novo stanje» и ответ «больше 50 000 € или нет». Изменённое письмо проверку не пройдёт.</p>
+</details>
+
+<section id="login" hidden>
+<h2>Сначала войдите через Telegram</h2>
+<p class="muted">Так проверяющий увидит, от кого документы. Ваш ник будет написан на каждой странице.</p>
+<div class="row"><button type="button" id="bot-login" hidden>Войти через Telegram</button></div>
+<p class="muted" hidden>В Telegram откроется бот — нажмите в нём «Start» и вернитесь сюда, страница продолжит сама. Не открылся? <a id="bot-link" href="#" target="_blank" rel="noopener noreferrer">Открыть бота</a>.</p>
+<div class="row" id="widget"></div>
+<p id="login-msg" class="error" role="status"></p>
+<p class="muted">Вошли не под тем аккаунтом? <a href="https://oauth.telegram.org" target="_blank" rel="noopener noreferrer">Сменить аккаунт Telegram</a>.</p>
+</section>
+
+<section id="pick" hidden>
+<p class="muted"><span id="whoami"></span> <button type="button" class="secondary" id="logout">Выйти</button></p>
+<h2>Файлы</h2>
+<p class="muted">До 5 файлов: PDF, JPG, PNG или письмо .eml, один файл до 30 МБ, вместе до 60 МБ. Все они откроются по одной ссылке, подряд на одной странице.</p>
+<div class="row"><input type="file" id="file" multiple accept=".pdf,.png,.jpg,.jpeg,.eml,application/pdf,image/png,image/jpeg,message/rfc822"></div>
+<ul id="files" class="muted"></ul>
+
+<h2>Кому показываете</h2>
+<label for="nick">Ник проверяющего в Telegram (обязательно)</label>
+<div class="row"><input type="text" id="nick" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="@nickname"></div>
+<p class="muted">Открыть сможет только этот человек: он войдёт через Telegram. Ник будет написан поверх документа — если кто-то сделает скриншот, будет видно, кому его показывали.</p>
+
+<h2>Сколько показывать</h2>
+<div class="row"><select id="seconds">
+<option value="90" selected>90 секунд</option>
+<option value="60">60 секунд</option>
+</select></div>
+
+<div class="row"><button id="send" disabled>Зашифровать и загрузить</button></div>
+<p id="status" class="muted" role="status"></p>
+<div id="progress" class="progress" role="status" aria-live="polite" hidden><p class="progress-text"></p><div class="progress-track"><div class="progress-bar indeterminate"></div></div></div>
+</section>
+
+<section id="done" hidden>
+<div class="box ok">
+<b>Готово.</b> Отправьте проверяющему эту ссылку — больше ничего не нужно.
+<ul id="preview"></ul>
+</div>
+<h2>Ссылка</h2>
+<div class="row"><div class="secret" id="link"></div><button class="secondary" data-copy="link">Скопировать ссылку</button></div>
+<h2>Кому</h2>
+<div class="row"><div class="secret" id="nick-out"></div></div>
+<p class="muted">Ключ к документам — часть ссылки, он есть только здесь, на этой странице. Закроете её — восстановить ссылку нельзя, придётся загрузить файлы заново.</p>
+<div class="row"><button class="secondary" id="again">Загрузить другие файлы</button></div>
+</section>
+<p class="muted">Код сервиса открыт: <a href="https://github.com/Smolevich/alta-onetime" target="_blank" rel="noopener noreferrer">github.com/Smolevich/alta-onetime</a></p>
+</main>
+</body>
+</html>
