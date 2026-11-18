@@ -27,7 +27,7 @@ LogsDirectory=alta-onetime
 LogsDirectoryMode=0750
 UMask=0027
 Environment=EVENTS_LOG=/var/log/alta-onetime/events.jsonl
-# TG_BOT_TOKEN и необязательные LOGIN_BOT_TOKEN, LOGIN_BOT_USERNAME, LOGIN_WEBHOOK_SECRET (root 600)
+# TG_BOT_TOKEN, TG_BOT_USERNAME и необязательные LOGIN_BOT_TOKEN, LOGIN_BOT_USERNAME, LOGIN_WEBHOOK_SECRET (root 600)
 # кладёт deploy.sh из Keychain.
 EnvironmentFile=/opt/alta-onetime/.env
 MemoryMax=900M

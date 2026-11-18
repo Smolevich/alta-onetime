@@ -7,11 +7,11 @@ import {
   linkVerifierFor,
   normalizePassword,
   verifierFor,
-} from "./crypto.js?v=20261116c";
+} from "./crypto.js?v=20261118a";
 import { checkStatement, maskAccount, verdictText } from "./dkim.js";
 import { stamp, watermarkText } from "./mark.js";
-import { bindLogout, currentUser, loginBot, loginProblem, mountBotLogin, mountWidget } from "./tglogin.js?v=20261116c";
-import { bindIndicator, nextPaint } from "./progress.js?v=20261116c";
+import { bindLogout, currentUser, loginConfig, loginProblem, mountBotLogin, mountWidget } from "./tglogin.js?v=20261118a";
+import { bindIndicator, nextPaint } from "./progress.js?v=20261118a";
 import * as pdfjs from "./vendor/pdf.min.mjs";
 
 pdfjs.GlobalWorkerOptions.workerSrc = "/check/static/vendor/pdf.worker.min.mjs";
@@ -67,13 +67,14 @@ async function init() {
     $("login-msg").textContent = problem;
     only("login");
     if (linkKey) storage((s) => s.setItem(KEY_SLOT, b64url(linkKey)));
-    if (!botMounted && (await loginBot().catch(() => null))) {
+    const config = botMounted && widgetMounted ? {} : await loginConfig().catch(() => ({}));
+    if (!botMounted && config.bot) {
       botMounted = true;
       mountBotLogin($("bot-login"), $("bot-link"), $("login-msg"), () => init());
     }
     if (!widgetMounted) {
       widgetMounted = true;
-      mountWidget($("widget"));
+      mountWidget($("widget"), config.widget);
     }
     return;
   }

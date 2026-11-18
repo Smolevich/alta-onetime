@@ -55,12 +55,14 @@ echo "before:"; check_public
 
 rsync -az --delete --exclude .venv --exclude .python --exclude __pycache__ --exclude .env \
   pyproject.toml uv.lock src deploy "$HOST:$DIR/"
-# Токен бота виджета — только для проверки подписи входа; из Keychain по stdin, в вывод не попадает.
+# Бот виджета — свой, отдельный от остальных ботов: только вход, сообщений не читает. Токен нужен для
+# проверки подписи входа; из Keychain по stdin, в вывод не попадает. Копия — в Vault.
 # Бот входа по deep link (LOGIN_*) необязателен: пока его записей в Keychain нет, сервис работает с виджетом.
 keychain() { security find-generic-password -s "$1" -w 2>/dev/null || true; }
-widget_token=$(security find-generic-password -s telegram-bot-token -w)
+widget_token=$(security find-generic-password -s alta-check-bot-token -w)
+widget_name=$(security find-generic-password -s alta-check-bot-username -w)
 {
-  printf 'TG_BOT_TOKEN=%s\n' "$widget_token"
+  printf 'TG_BOT_TOKEN=%s\nTG_BOT_USERNAME=%s\n' "$widget_token" "$widget_name"
   login_token=$(keychain alta-login-bot-token)
   login_name=$(keychain alta-login-bot-username)
   login_secret=$(keychain alta-login-webhook-secret)

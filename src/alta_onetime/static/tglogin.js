@@ -1,7 +1,6 @@
 // Вход через Telegram: основной путь — бот по deep link (человек жмёт Start в своём Telegram, страница
 // опрашивает сервер), запасной — Login Widget, который перенаправляет на /check/api/tg-login.
 
-const BOT = "claude_smolevich_bot";
 const REASONS = {
   no_username: "В вашем Telegram не задан username. Задайте его в настройках Telegram (Настройки → Имя пользователя) и войдите снова.",
   expired: "Вход устарел, войдите ещё раз.",
@@ -23,11 +22,13 @@ export function loginProblem() {
   return REASONS[m[1]] || REASONS.bad_signature;
 }
 
-export function mountWidget(container) {
+// Имя бота виджета приходит с сервера (TG_BOT_USERNAME): токен для проверки подписи — тоже там.
+export function mountWidget(container, bot) {
+  if (!bot) return;
   const s = document.createElement("script");
   s.async = true;
   s.src = "https://telegram.org/js/telegram-widget.js?22";
-  s.dataset.telegramLogin = BOT;
+  s.dataset.telegramLogin = bot;
   s.dataset.size = "large";
   s.dataset.authUrl = `/check/api/tg-login?next=${encodeURIComponent(location.pathname)}`;
   container.append(s);
@@ -44,9 +45,10 @@ export function bindLogout(button) {
   });
 }
 
-export async function loginBot() {
+// { bot: бот входа по deep link или null, widget: бот Login Widget или null }
+export async function loginConfig() {
   const res = await fetch("/check/api/login-config", { cache: "no-store" });
-  return res.ok ? (await res.json()).bot : null;
+  return res.ok ? await res.json() : { bot: null, widget: null };
 }
 
 // Кнопка входа через бота. Окно Telegram открываем синхронно в клике, иначе браузер заблокирует всплывающее.

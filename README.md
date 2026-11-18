@@ -98,7 +98,7 @@ Python 3.13, [uv](https://docs.astral.sh/uv/). Локально:
 
 ```sh
 uv sync
-TG_BOT_TOKEN=... uv run uvicorn --factory alta_onetime.main:create_app --port 8103
+TG_BOT_TOKEN=... TG_BOT_USERNAME=my_login_bot uv run uvicorn --factory alta_onetime.main:create_app --port 8103
 # страница: http://127.0.0.1:8103/check/
 ```
 
@@ -107,6 +107,7 @@ TG_BOT_TOKEN=... uv run uvicorn --factory alta_onetime.main:create_app --port 81
 | Переменная | Зачем |
 |---|---|
 | `TG_BOT_TOKEN` | проверка подписи Telegram Login Widget; без неё вход выключен |
+| `TG_BOT_USERNAME` | username того же бота (например `my_login_bot`) — его показывает виджет; у бота в @BotFather `/setdomain` должен указывать на ваш домен |
 | `LOGIN_BOT_TOKEN`, `LOGIN_BOT_USERNAME`, `LOGIN_WEBHOOK_SECRET` | необязательный вход через бота по deep link |
 | `EVENTS_LOG` | путь к журналу событий (JSONL); без него журнал не пишется |
 | `ALLOWED_RECIPIENTS` | необязательный список ников получателей через запятую |
