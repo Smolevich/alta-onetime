@@ -24,7 +24,7 @@ from starlette.staticfiles import StaticFiles
 from alta_onetime.botlogin import NONCE_TTL as BOT_NONCE_TTL
 from alta_onetime.botlogin import BotLogins, Status, challenge_for, start_payload
 from alta_onetime.ratelimit import RateLimiter
-from alta_onetime.store import MAX_ACTIVE_PER_SENDER, OpenResult, Store
+from alta_onetime.store import MAX_ACTIVE_PER_SENDER, OpenResult, Store, load_items, save_items
 from alta_onetime.tg import (
     SESSION_TTL,
     LoginError,
@@ -100,7 +100,10 @@ def client_ip(request: Request) -> str:
 
 
 class EventLog:
-    """Append-only JSONL: тип события, время, id ссылки, числа — без ников, tg_id, содержимого, паролей."""
+    """Append-only JSONL: тип события, время, id ссылки, числа — без tg_id, содержимого, паролей.
+
+    Ники — только в событии foreign: по нему отвечаем, на кого выписана ссылка, без правки кода.
+    """
 
     def __init__(self, path: str | None) -> None:
         self.path = path
@@ -147,10 +150,13 @@ def create_app(
     allowed_recipients: frozenset[str] | None = None,
     login_bot: tuple[str, str, str] | None = None,
     widget_bot: str | None = None,
+    store_dir: str | None = None,
 ) -> Starlette:
     """widget_bot — username бота Login Widget, чей токен bot_token; login_bot — (токен, username, секрет
-    вебхука) бота для входа по deep link; без него только виджет."""
+    вебхука) бота для входа по deep link; без него только виджет. store_dir — куда записи уходят на время
+    перезапуска; без него рестарт их теряет."""
     store = store or Store()
+    state_dir = store_dir or os.environ.get("STORE_DIR")
     if allowed_recipients is None:
         allowed_recipients = parse_recipients(os.environ.get("ALLOWED_RECIPIENTS"))
     used_hashes = UsedHashes()
@@ -340,8 +346,8 @@ def create_app(
             return error("login", 401)
         item = store.peek(item_id)
         if item is not None and item.to != user.username:
-            events.write("foreign", id=item_id)
-            return error("other", 403)
+            events.write("foreign", id=item_id, to=item.to, by=user.username)
+            return JSONResponse({"error": "other", "to": item.to}, status_code=403)
         opened = store.open(item_id, verifier)
         if opened.result is OpenResult.GONE:
             if opened.burned:
@@ -390,9 +396,17 @@ def create_app(
                 for item_id in store.sweep():
                     events.write("deleted", id=item_id, reason="expired")
 
+        if state_dir:
+            restored = load_items(Path(state_dir))
+            store.items.update(restored)
+            events.write("restored", items=len(restored))
         task = asyncio.create_task(sweeper())
         yield
         task.cancel()
+        if state_dir:
+            store.sweep()
+            save_items(store.items, Path(state_dir))
+            events.write("saved", items=len(store.items))
 
     routes = [
         Route(PREFIX, to_slash),

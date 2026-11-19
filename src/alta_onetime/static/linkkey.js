@@ -1,7 +1,7 @@
 // Ключ беспарольной ссылки живёт во фрагменте адреса. Виджет Telegram кладёт location.href в return_to
 // своего iframe, поэтому фрагмент снимаем при загрузке, раньше любого стороннего скрипта, а ключ держим
 // в sessionStorage вкладки: вход через виджет уводит её на /check/api/tg-login и возвращает без фрагмента.
-import { b64url, linkKeyFrom } from "./crypto.js?v=20261118b";
+import { b64url, linkKeyFrom } from "./crypto.js?v=20261119a";
 
 export const KEY_TTL_MS = 60 * 60 * 1000;
 

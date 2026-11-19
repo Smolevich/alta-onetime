@@ -187,14 +187,24 @@ def test_created_event_has_only_id_and_sizes(client, events_path):
     }
 
 
-def test_event_log_has_no_nicks_or_tg_ids(client, events_path):
+def test_event_log_has_no_tg_ids(client, events_path):
     item_id = upload(client)
     open_(client, item_id, WRONG)
     client.cookies.clear()
     login(client, "someone_else", tg_id=9000002)
     open_(client, item_id)
     text = open(events_path, encoding="utf-8").read()
-    assert not any(n in text.lower() for n in ("test_reviewer", "someone_else", "9000001", "9000002"))
+    assert "9000001" not in text and "9000002" not in text
+
+
+def test_nicks_appear_only_in_foreign_events(client, events_path):
+    item_id = upload(client)
+    open_(client, item_id, WRONG)
+    client.cookies.clear()
+    login(client, "someone_else", tg_id=9000002)
+    open_(client, item_id)
+    lines = [json.dumps(e) for e in events(events_path) if e["event"] != "foreign"]
+    assert not any(n in line.lower() for line in lines for n in ("test_reviewer", "someone_else"))
 
 
 def test_failed_login_logs_nothing_from_the_request(clock, events_path):
@@ -377,6 +387,22 @@ def test_other_telegram_user_gets_no_ciphertext(client):
     assert (res.status_code, res.json()["error"]) == (403, "other")
 
 
+def test_other_telegram_user_is_told_whom_the_link_is_for(client):
+    item_id = upload(client)
+    client.cookies.clear()
+    login(client, "someone_else", tg_id=9000002)
+    assert open_(client, item_id).json()["to"] == "test_reviewer"
+
+
+def test_foreign_event_names_recipient_and_reader(client, events_path):
+    item_id = upload(client)
+    client.cookies.clear()
+    login(client, "someone_else", tg_id=9000002)
+    open_(client, item_id)
+    foreign = [e for e in events(events_path) if e["event"] == "foreign"]
+    assert [(e["id"], e["to"], e["by"]) for e in foreign] == [(item_id, "test_reviewer", "someone_else")]
+
+
 def test_other_telegram_user_does_not_spend_attempts(client):
     item_id = upload(client)
     client.cookies.clear()
@@ -423,3 +449,52 @@ def test_logout_clears_session_cookie(client):
 def test_logout_ends_the_session(client):
     client.post("/check/api/logout")
     assert client.get("/check/api/me").status_code == 401
+
+
+def restartable_client(clock: Clock, events_path: str, store_dir) -> TestClient:
+    app = create_app(Store(clock=clock), events_path=events_path, bot_token=TOKEN, store_dir=str(store_dir))
+    c = TestClient(app, base_url="https://testserver")
+    c.app_clock = clock
+    return c
+
+
+def test_link_survives_restart(clock, events_path, tmp_path):
+    with restartable_client(clock, events_path, tmp_path / "state") as before:
+        login(before, "test_reviewer")
+        item_id = upload(before)
+    with restartable_client(clock, events_path, tmp_path / "state") as after:
+        login(after, "test_reviewer")
+        assert open_(after, item_id).content == CIPHERTEXT
+
+
+def test_wrong_attempts_survive_restart(clock, events_path, tmp_path):
+    with restartable_client(clock, events_path, tmp_path / "state") as before:
+        login(before, "test_reviewer")
+        item_id = upload(before)
+        open_(before, item_id, WRONG)
+    with restartable_client(clock, events_path, tmp_path / "state") as after:
+        login(after, "test_reviewer")
+        assert open_(after, item_id, WRONG).json()["left"] == MAX_ATTEMPTS - 2
+
+
+def test_restored_link_does_not_come_back_after_crash(clock, events_path, tmp_path):
+    with restartable_client(clock, events_path, tmp_path / "state") as before:
+        login(before, "test_reviewer")
+        item_id = upload(before)
+    with restartable_client(clock, events_path, tmp_path / "state") as after:
+        login(after, "test_reviewer")
+        open_(after, item_id)
+        # Второй процесс поднимается, не дождавшись штатной остановки первого, как после падения.
+        with restartable_client(clock, events_path, tmp_path / "state") as after_crash:
+            login(after_crash, "test_reviewer")
+            assert open_(after_crash, item_id).status_code == 404
+
+
+def test_expired_link_is_not_saved_on_restart(clock, events_path, tmp_path):
+    with restartable_client(clock, events_path, tmp_path / "state") as before:
+        login(before, "test_reviewer")
+        item_id = upload(before)
+        clock.now += TTL_SECONDS
+    with restartable_client(clock, events_path, tmp_path / "state") as after:
+        login(after, "test_reviewer")
+        assert open_(after, item_id).status_code == 404

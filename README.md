@@ -25,8 +25,10 @@ English summary — [below](#english).
 
 ## Что знает и хранит сервер
 
-Хранит **только в памяти процесса**, на диск не пишет
-([`store.py`](src/alta_onetime/store.py)); в systemd-юните запрещён своп (`MemorySwapMax=0`):
+Хранит **в памяти процесса** ([`store.py`](src/alta_onetime/store.py)); в systemd-юните запрещён
+своп (`MemorySwapMax=0`). На диск записи попадают только на время перезапуска: при остановке
+сервис кладёт их в `STORE_DIR` (каталог доступен только пользователю сервиса), при старте читает
+и сразу стирает. Ключа там нет, как и в памяти:
 
 - шифротекст, соль, IV;
 - SHA-256 от проверочного значения (не сам ключ и не проверочное значение);
@@ -39,14 +41,16 @@ English summary — [below](#english).
 - сразу после первого успешного открытия;
 - после 5 неверных проверочных значений;
 - через 24 часа, если ссылку не открыли;
-- при любом перезапуске сервиса (всё в памяти).
+- при перезапуске без `STORE_DIR` или при падении процесса (штатная остановка их сохраняет).
 
 Сервер **не видит** содержимого файлов, их типов и ключа. Он знает число файлов и общий размер
 шифротекста.
 
 Журнал событий ([`main.py`](src/alta_onetime/main.py), `EventLog`) — только тип события, время,
-id ссылки и числа (сколько файлов, сколько байт, сколько попыток осталось). Ников, Telegram-id,
-IP и содержимого в нём нет; журнал доступа uvicorn выключен (`--no-access-log`).
+id ссылки и числа (сколько файлов, сколько байт, сколько попыток осталось). Telegram-id, IP и
+содержимого в нём нет. Ники — только в событии `foreign` (ссылку открыл не тот человек): ник
+получателя и ник пытавшегося. Тому, кто открыл чужую ссылку, страница тоже называет ник получателя.
+Журнал доступа uvicorn выключен (`--no-access-log`).
 
 Ограничения: до 5 файлов, файл до 30 МБ, вместе до 60 МБ; у одного отправителя не больше 3
 активных ссылок и 10 загрузок в час.
@@ -110,6 +114,7 @@ TG_BOT_TOKEN=... TG_BOT_USERNAME=my_login_bot uv run uvicorn --factory alta_onet
 | `TG_BOT_USERNAME` | username того же бота (например `my_login_bot`) — его показывает виджет; у бота в @BotFather `/setdomain` должен указывать на ваш домен |
 | `LOGIN_BOT_TOKEN`, `LOGIN_BOT_USERNAME`, `LOGIN_WEBHOOK_SECRET` | необязательный вход через бота по deep link |
 | `EVENTS_LOG` | путь к журналу событий (JSONL); без него журнал не пишется |
+| `STORE_DIR` | куда записи уходят на время перезапуска; без него рестарт их теряет |
 | `ALLOWED_RECIPIENTS` | необязательный список ников получателей через запятую |
 
 `deploy.sh` выкатывает код на сервер по SSH (хост — в `HOST` или в файле `.deploy-host`, он не в
@@ -126,14 +131,17 @@ Source of https://alta.smolevich.com/check/ — a one-time viewer for bank docum
   generated there; HKDF-SHA-256 (with the recipient's Telegram username in `info`) derives the
   encryption key and a verifier. The key travels only in the link fragment (`#…`), which browsers
   never send to the server.
-- The server keeps **in memory only** (no disk, swap disabled in the unit): ciphertext, salt, IV,
-  the SHA-256 of the verifier, the recipient's username and the sender's username/id.
+- The server keeps **in memory** (swap disabled in the unit): ciphertext, salt, IV, the SHA-256 of
+  the verifier, the recipient's username and the sender's username/id. Only across a restart are
+  records written to `STORE_DIR`; the next start reads and deletes them.
 - A record is deleted right after the first successful open, after 5 wrong verifiers, after 24 h,
-  or on any restart. Only the logged-in Telegram user whose username matches the recipient can
+  or on a crash. Only the logged-in Telegram user whose username matches the recipient can
   fetch it.
 - Decryption and rendering happen in the viewer's browser: canvas with a watermark naming sender,
   recipient and time, shown for 60–90 s, no download button.
-- The event log holds event type, time, link id and counts — no usernames, ids, IPs or content.
+- The event log holds event type, time, link id and counts — no Telegram ids, IPs or content.
+  Usernames appear only in `foreign` events (someone other than the recipient tried the link): the
+  recipient and who tried. That person is also told which username the link is for.
 - You still trust the JavaScript served by the site: compare it with this repo (see
   “Как проверить самому” above), and screenshots cannot be prevented, only traced by the watermark.
 
