@@ -6,12 +6,12 @@ import {
   linkVerifierFor,
   normalizePassword,
   verifierFor,
-} from "./crypto.js?v=20261118b";
+} from "./crypto.js?v=20261119a";
 import { checkStatement, maskAccount, verdictText } from "./dkim.js";
 import { stamp, watermarkText } from "./mark.js";
-import { bindLogout, currentUser, loginConfig, loginProblem, mountBotLogin, mountWidget } from "./tglogin.js?v=20261118b";
-import { bindIndicator, nextPaint } from "./progress.js?v=20261118b";
-import { adoptLinkKey, dropLinkKey, keySlot } from "./linkkey.js?v=20261118b";
+import { bindLogout, currentUser, loginConfig, loginProblem, mountBotLogin, mountWidget } from "./tglogin.js?v=20261119a";
+import { bindIndicator, nextPaint } from "./progress.js?v=20261119a";
+import { adoptLinkKey, dropLinkKey, keySlot } from "./linkkey.js?v=20261119a";
 import * as pdfjs from "./vendor/pdf.min.mjs";
 
 pdfjs.GlobalWorkerOptions.workerSrc = "/check/static/vendor/pdf.worker.min.mjs";
@@ -230,6 +230,11 @@ async function show(bundle, nick, sender) {
   }
 }
 
+function foreignLinkText(to) {
+  const whom = to ? `Ссылка выписана на @${to}.` : "Эта ссылка для другого человека.";
+  return `${whom} Войдите в Telegram под этим ником или попросите отправителя сделать новую ссылку на ваш ник. Попытка не потрачена.`;
+}
+
 function fail(text) {
   progress("idle");
   $("msg").className = "error";
@@ -260,9 +265,8 @@ async function openDoc() {
     }
     if (res.status === 401) return location.reload();
     if (res.status === 429) return fail("Слишком много запросов. Подождите минуту и попробуйте ещё раз.");
-    if (res.status === 403 && (await res.clone().json()).error === "other") {
-      return fail("Эта ссылка для другого человека. Попытка не потрачена.");
-    }
+    const refusal = res.status === 403 ? await res.clone().json() : {};
+    if (refusal.error === "other") return fail(foreignLinkText(refusal.to));
     if (res.status === 403 && linkKey) {
       return fail("Ссылка неполная или повреждена. Попросите отправителя прислать её целиком.");
     }

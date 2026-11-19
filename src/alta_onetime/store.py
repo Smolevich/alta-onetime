@@ -1,15 +1,21 @@
 """Хранилище шифротекстов в памяти: одноразовая выдача, лимит попыток, срок жизни.
 
 Содержимое и пароли сюда не попадают: только шифротекст, соль, IV и хеш верификатора.
+На диск записи попадают только на время перезапуска сервиса (save_items / load_items).
 """
 
+import base64
 import hashlib
 import hmac
+import json
+import os
+import re
 import secrets
 import time
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import asdict, dataclass, field
 from enum import Enum
+from pathlib import Path
 
 TTL_SECONDS = 24 * 3600
 MAX_ATTEMPTS = 5
@@ -104,3 +110,53 @@ class Store:
             del self.items[item_id]
             return Opened(OpenResult.GONE, burned=True)
         return Opened(OpenResult.WRONG, attempts_left=item.attempts_left)
+
+
+INDEX = "items.json"
+ITEM_ID = re.compile(r"[A-Za-z0-9_-]{1,64}")
+BYTES_FIELDS = ("salt", "iv", "verifier_hash")
+
+
+def item_to_json(item: Item) -> dict[str, object]:
+    fields = asdict(item)
+    del fields["ciphertext"]
+    return {**fields, **{k: base64.b64encode(fields[k]).decode() for k in BYTES_FIELDS}}
+
+
+def item_from_json(fields: dict, ciphertext: bytes) -> Item:
+    raw = {k: base64.b64decode(fields[k]) for k in BYTES_FIELDS}
+    return Item(**{**fields, **raw, "ciphertext": ciphertext})
+
+
+def save_items(items: dict[str, Item], directory: Path) -> None:
+    """Пишет записи в каталог: шифротекст — файлом на запись, остальное — одним items.json.
+
+    items.json пишется последним и атомарно: без него каталог считается пустым.
+    """
+    directory.mkdir(parents=True, exist_ok=True)
+    for item_id, item in items.items():
+        (directory / f"{item_id}.bin").write_bytes(item.ciphertext)
+    index = {item_id: item_to_json(item) for item_id, item in items.items()}
+    tmp = directory / f"{INDEX}.tmp"
+    tmp.write_text(json.dumps(index), encoding="utf-8")
+    os.replace(tmp, directory / INDEX)
+
+
+def load_items(directory: Path) -> dict[str, Item]:
+    """Читает то, что записал save_items, и сразу стирает файлы.
+
+    Стирание обязательно: иначе запись, открытая после загрузки, воскресла бы при следующем старте.
+    """
+    if not directory.is_dir():
+        return {}
+    index_path = directory / INDEX
+    index = json.loads(index_path.read_text(encoding="utf-8")) if index_path.exists() else {}
+    items = {}
+    for item_id, fields in index.items():
+        blob = directory / f"{item_id}.bin"
+        if ITEM_ID.fullmatch(item_id) and blob.exists():
+            items[item_id] = item_from_json(fields, blob.read_bytes())
+    for leftover in directory.iterdir():
+        if leftover.is_file():
+            leftover.unlink()
+    return items

@@ -6,7 +6,7 @@ Wants=network-online.target
 [Service]
 Type=simple
 WorkingDirectory=/opt/alta-onetime
-# Шифротексты живут только в памяти процесса: рестарт их теряет, и это допустимо.
+# Шифротексты живут в памяти процесса; на время рестарта — в STORE_DIR (0700, стирается при старте).
 # --no-access-log: в строках доступа был бы IP посетителя.
 ExecStart=/opt/alta-onetime/.venv/bin/python -m uvicorn --factory alta_onetime.main:create_app --host 127.0.0.1 --port 8103 --no-server-header --no-access-log --proxy-headers --forwarded-allow-ips 127.0.0.1
 Restart=on-failure
@@ -29,6 +29,9 @@ LogsDirectory=alta-onetime
 LogsDirectoryMode=0750
 UMask=0027
 Environment=EVENTS_LOG=/var/log/alta-onetime/events.jsonl
+StateDirectory=alta-onetime
+StateDirectoryMode=0700
+Environment=STORE_DIR=/var/lib/alta-onetime/store
 # TG_BOT_TOKEN, TG_BOT_USERNAME и необязательные LOGIN_BOT_TOKEN, LOGIN_BOT_USERNAME, LOGIN_WEBHOOK_SECRET (root 600)
 # кладёт deploy.sh из Keychain.
 EnvironmentFile=/opt/alta-onetime/.env
